@@ -60,7 +60,19 @@ public class PortScanner {
     private final AtomicInteger scannedCount = new AtomicInteger(0);
 
     public PortScanner(String targetHost, int startPort, int endPort, int timeout, int threadCount) {
-        this.targetHost   = targetHost;
+        if (targetHost == null || targetHost.trim().isEmpty()) {
+            throw new IllegalArgumentException("Target host must not be empty.");
+        }
+        if (startPort < 1 || endPort > 65535 || startPort > endPort) {
+            throw new IllegalArgumentException("Port range must satisfy 1 <= start <= end <= 65535.");
+        }
+        if (timeout < 1 || timeout > 60000) {
+            throw new IllegalArgumentException("Timeout must be between 1 and 60000 milliseconds.");
+        }
+        if (threadCount < 1 || threadCount > 200) {
+            throw new IllegalArgumentException("Thread count must be between 1 and 200.");
+        }
+        this.targetHost   = targetHost.trim();
         this.startPort    = startPort;
         this.endPort      = endPort;
         this.timeout      = timeout;
@@ -116,7 +128,13 @@ public class PortScanner {
         }
 
         executor.shutdown();
-        executor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+        try {
+            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+            throw e;
+        }
 
         long elapsed = System.currentTimeMillis() - startTime;
         printReport(resolvedIP, elapsed);
@@ -170,65 +188,57 @@ public class PortScanner {
     // ─── main ────────────────────────────────────────────────────────────────
 
     public static void main(String[] args) {
-        Scanner input = new Scanner(System.in);
+        try (Scanner input = new Scanner(System.in)) {
+            System.out.println("╔══════════════════════════════════════════════════════╗");
+            System.out.println("║           JAVA PORT SCANNER TOOL v1.0               ║");
+            System.out.println("║              by hemanathan115                        ║");
+            System.out.println("╚══════════════════════════════════════════════════════╝");
+            System.out.println();
 
-        System.out.println("╔══════════════════════════════════════════════════════╗");
-        System.out.println("║           JAVA PORT SCANNER TOOL v1.0               ║");
-        System.out.println("║              by hemanathan115                        ║");
-        System.out.println("╚══════════════════════════════════════════════════════╝");
-        System.out.println();
+            System.out.print("  Enter target IP or hostname: ");
+            String host = input.nextLine().trim();
 
-        // Target IP / hostname
-        System.out.print("  Enter target IP or hostname: ");
-        String host = input.nextLine().trim();
+            System.out.println();
+            System.out.println("  Select scan mode:");
+            System.out.println("    1. Quick Scan   (ports 1 – 1024)");
+            System.out.println("    2. Common Ports (ports 1 – 10000)");
+            System.out.println("    3. Full Scan    (ports 1 – 65535)");
+            System.out.println("    4. Custom Range");
+            System.out.print("  Choice [1-4]: ");
+            String modeChoice = input.nextLine().trim();
 
-        // Scan mode
-        System.out.println();
-        System.out.println("  Select scan mode:");
-        System.out.println("    1. Quick Scan   (ports 1 – 1024)");
-        System.out.println("    2. Common Ports (ports 1 – 10000)");
-        System.out.println("    3. Full Scan    (ports 1 – 65535)");
-        System.out.println("    4. Custom Range");
-        System.out.print("  Choice [1-4]: ");
-        String modeChoice = input.nextLine().trim();
+            int startPort = 1, endPort = 1024;
+            switch (modeChoice) {
+                case "1": startPort = 1;  endPort = 1024;  break;
+                case "2": startPort = 1;  endPort = 10000; break;
+                case "3": startPort = 1;  endPort = 65535; break;
+                case "4":
+                    System.out.print("  Start port: ");
+                    startPort = Integer.parseInt(input.nextLine().trim());
+                    System.out.print("  End port  : ");
+                    endPort = Integer.parseInt(input.nextLine().trim());
+                    break;
+                default:
+                    System.out.println("  Invalid choice. Using Quick Scan.");
+            }
 
-        int startPort = 1, endPort = 1024;
-        switch (modeChoice) {
-            case "1": startPort = 1;  endPort = 1024;  break;
-            case "2": startPort = 1;  endPort = 10000; break;
-            case "3": startPort = 1;  endPort = 65535; break;
-            case "4":
-                System.out.print("  Start port: ");
-                startPort = Integer.parseInt(input.nextLine().trim());
-                System.out.print("  End port  : ");
-                endPort   = Integer.parseInt(input.nextLine().trim());
-                break;
-            default:
-                System.out.println("  Invalid choice. Using Quick Scan.");
-        }
+            System.out.print("  Number of threads [default 200]: ");
+            String threadInput = input.nextLine().trim();
+            int threads = threadInput.isEmpty() ? 200 : Integer.parseInt(threadInput);
 
-        // Thread count
-        System.out.print("  Number of threads [default 200]: ");
-        String threadInput = input.nextLine().trim();
-        int threads = threadInput.isEmpty() ? 200 : Integer.parseInt(threadInput);
+            System.out.print("  Timeout per port in ms [default 500]: ");
+            String timeoutInput = input.nextLine().trim();
+            int timeout = timeoutInput.isEmpty() ? 500 : Integer.parseInt(timeoutInput);
 
-        // Timeout
-        System.out.print("  Timeout per port in ms [default 500]: ");
-        String timeoutInput = input.nextLine().trim();
-        int timeout = timeoutInput.isEmpty() ? 500 : Integer.parseInt(timeoutInput);
-
-        input.close();
-
-        try {
             PortScanner scanner = new PortScanner(host, startPort, endPort, timeout, threads);
             scanner.scan();
         } catch (UnknownHostException e) {
-            System.err.println("  ERROR: Cannot resolve host '" + host + "'. Check the address and try again.");
+            System.err.println("  ERROR: Cannot resolve target host. Check the address and try again.");
         } catch (InterruptedException e) {
             System.err.println("  ERROR: Scan interrupted.");
             Thread.currentThread().interrupt();
-        } catch (NumberFormatException e) {
-            System.err.println("  ERROR: Invalid number entered.");
+        } catch (IllegalArgumentException e) {
+            System.err.println("  ERROR: " + e.getMessage());
         }
     }
 }

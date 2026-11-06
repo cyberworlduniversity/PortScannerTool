@@ -19,4 +19,6 @@ jobs:
           distribution: temurin
           java-version: "17"
       - name: Compile Java source
-        run: javac -Xlint:all src/PortScanner.java
+        run: javac -Xlint:all -d build src/PortScanner.java tests/PortScannerValidationTest.java
+      - name: Run validation tests
+        run: java -cp build PortScannerValidationTest

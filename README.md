@@ -158,3 +158,51 @@ run.bat
 ## 📜 License
 
 This project is open source and free to use for educational purposes.
+
+
+## Repository Quick Start
+
+Clone the canonical repository:
+
+```bash
+git clone https://github.com/cyberworlduniversity/PortScannerTool.git
+cd PortScannerTool
+```
+
+### Requirements and installation
+
+- Install JDK 11+ (JDK 8+ for this standalone port scanner) and Maven where applicable.
+
+```bash
+JDK 8+; no external packages are documented.
+```
+
+### Build / run
+
+```bash
+javac src/PortScanner.java
+```
+
+java -cp out PortScanner
+
+### Validation
+
+```bash
+javac -d out src/PortScanner.java
+```
+
+Scan only systems and ports you are authorized to assess.
+
+### Program flow
+
+```mermaid
+flowchart TD
+    A[Start] --> B[Initialize application]
+    B --> C[Select interface or input]
+    C --> D{Ready to process?}
+    D -- No --> E[Report setup or input issue]
+    D -- Yes --> F[Run PortScannerTool operation]
+    F --> G[Summarize findings]
+    G --> H[Display results and exit]
+    E --> H
+```
